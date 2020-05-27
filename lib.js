@@ -5,12 +5,6 @@ var EventEmitter = require('events');
 var jspack = require('jspack').jspack;
 const os = require('os');
 const Netmask = require('netmask').Netmask;
-// Require Logging
-const LoggingBase = require('@hibas123/nodelogging').LoggingBase;
-// Init Logger
-const log = new LoggingBase({
-  name: 'dmxnet',
-});
 
 // ArtDMX Header for jspack
 var ArtDmxHeaderFormat = '!7sBHHBBBBH';
@@ -18,13 +12,14 @@ var ArtDmxHeaderFormat = '!7sBHHBBBBH';
 var ArtDmxPayloadFormat = '512B';
 
 /** Class representing the core dmxnet structure */
-class dmxnet {
+class dmxnet extends EventEmitter {
   /**
    * Creates a new dmxnet instance
    *
    * @param {object} options - Options for the whole instance
    */
   constructor(options) {
+    super()
     // Parse all options and set defaults
     this.verbose = options.verbose || 0;
     this.oem = options.oem || 0x2908; // OEM code hex
@@ -32,17 +27,6 @@ class dmxnet {
     this.sName = options.sName || 'dmxnet'; // Shortname
     this.lName = options.lName ||
       'dmxnet - OpenSource ArtNet Transceiver'; // Longname
-    // Set log levels
-    if (this.verbose > 0) {
-      // ToDo: Set Log Level
-      if (this.verbose > 1) {
-        // ToDo: Set Log Level Debug
-      }
-    } else {
-      // ToDo: Set Log Level
-    }
-    // Log started information
-    log.log('started with options ' + JSON.stringify(options));
 
     // Get all network interfaces
     this.interfaces = os.networkInterfaces();
@@ -62,7 +46,6 @@ class dmxnet {
         }
       });
     });
-    log.debug('Interfaces: ' + JSON.stringify(this.ip4));
     // init artPollReplyCount
     this.artPollReplyCount = 0;
     // Array containing reference to foreign controllers
@@ -95,7 +78,8 @@ class dmxnet {
     });
     // Start listening
     this.listener4.bind(this.port);
-    log.log('Listening on port ' + this.port);
+    this.emit('listening', this.port);
+
     // Open Socket for sending broadcast data
     this.socket = dgram.createSocket('udp4');
     this.socket.bind(() => {
@@ -105,11 +89,11 @@ class dmxnet {
     // Periodically check Controllers
     setInterval(() => {
       if (this.controllers) {
-        log.debug('Check controller alive, count ' + this.controllers.length);
         for (var index = 0; index < this.controllers.length; index++) {
           if ((new Date().getTime() -
               new Date(this.controllers[index].last_poll).getTime()) >
             60000) {
+            this.emit('controller_lost', this.controllers.index);
             this.controllers[index].alive = false;
           }
         }
@@ -148,7 +132,7 @@ class dmxnet {
    * Builds and sends an ArtPollReply-Packet
    */
   ArtPollReply() {
-    log.debug('Send ArtPollReply');
+    this.emit('sending_artpoll_reply', {node:this});
 
     this.ip4.forEach((ip) => {
       // BindIndex handles all the different "instance".
@@ -207,7 +191,7 @@ class dmxnet {
         client.send(udppacket, 0, udppacket.length, 6454, broadcastip,
           (err) => {
             if (err) throw err;
-            log.log('ArtPollReply frame sent');
+            this.emit('debug', 'ArtPollReply frame sent');
           });
       });
       // Send one package for every receiver
@@ -256,7 +240,7 @@ class dmxnet {
         client.send(udppacket, 0, udppacket.length, 6454, broadcastip,
           (err) => {
             if (err) throw err;
-            log.log('ArtPollReply frame sent');
+            this.emit('artpoll_frame_reply_sent', {node:this});
           });
       });
       if ((this.senders.length + this.receivers.length) < 1) {
@@ -294,7 +278,7 @@ class dmxnet {
             // BindIndex, Status2
             1, 0b00001110,
           ]));
-        log.debug('Packet content: ' + udppacket.toString('hex'));
+        this.emit('packet_sent', {node:this, data:udppacket})
         // Send UDP
         var client = this.socket;
         client.send(udppacket, 0, udppacket.length, 6454, broadcastip,
@@ -310,11 +294,10 @@ class dmxnet {
     }
   }
 }
-
 /**
  * Class representing a sender
  */
-class sender {
+class sender extends EventEmitter {
   /**
    * Creates a new sender, usually called trough factory in dmxnet
    *
@@ -322,6 +305,7 @@ class sender {
    * @param {dmxnet} parent - Instance of the dmxnet parent
    */
   constructor(opt, parent) {
+    super();
     // save parent object
     this.parent = parent;
 
@@ -332,28 +316,25 @@ class sender {
     this.subnet = options.subnet || 0;
     this.universe = options.universe || 0;
     this.subuni = options.subuni;
-    this.ip = options.ip || '255.255.255.255';
+    this.ip = options.ip || "255.255.255.255";
     this.port = options.port || 6454;
     this.verbose = this.parent.verbose;
     this.base_refresh_interval = options.base_refresh_interval || 1000;
 
     // Validate Input
     if (this.net > 127) {
-      throw new Error('Invalid Net, must be smaller than 128');
+      throw new Error("Invalid Net, must be smaller than 128");
     }
     if (this.universe > 15) {
-      throw new Error('Invalid Universe, must be smaller than 16');
+      throw new Error("Invalid Universe, must be smaller than 16");
     }
     if (this.subnet > 15) {
-      throw new Error('Invalid subnet, must be smaller than 16');
+      throw new Error("Invalid subnet, must be smaller than 16");
     }
-    if ((this.net < 0) || (this.subnet < 0) || (this.universe < 0)) {
-      throw new Error('Subnet, Net or Universe must be 0 or bigger!');
+    if (this.net < 0 || this.subnet < 0 || this.universe < 0) {
+      throw new Error("Subnet, Net or Universe must be 0 or bigger!");
     }
-    if (this.verbose > 0) {
-      log.log('new dmxnet sender started with params: ' +
-        JSON.stringify(options));
-    }
+    this.emit("started", JSON.stringify(options));
     // init dmx-value array
     this.values = [];
     // fill all 512 channels
@@ -362,13 +343,13 @@ class sender {
     }
     // Build Subnet/Universe/Net Int16
     if (!this.subuni) {
-      this.subuni = (this.subnet << 4) | (this.universe);
+      this.subuni = (this.subnet << 4) | this.universe;
     }
     // ArtDmxSeq
     this.ArtDmxSeq = 1;
 
     // Create Socket
-    this.socket = dgram.createSocket('udp4');
+    this.socket = dgram.createSocket("udp4");
 
     // Check IP and Broadcast
     if (isBroadcast(this.ip)) {
@@ -376,13 +357,11 @@ class sender {
         this.socket.setBroadcast(true);
         this.socket_ready = true;
       });
-
     } else {
       this.socket_ready = true;
     }
     // Transmit first Frame
     this.transmit();
-
 
     // Send Frame every base_refresh_interval ms - even if no channel was changed
     this.interval = setInterval(() => {
@@ -402,22 +381,32 @@ class sender {
       // Build packet: ID Int8[8], OpCode Int16 0x5000 (conv. to 0x0050),
       // ProtVer Int16, Sequence Int8, PhysicalPort Int8,
       // SubnetUniverseNet Int16, Length Int16
-      var udppacket = Buffer.from(jspack.Pack(ArtDmxHeaderFormat +
-        ArtDmxPayloadFormat,
-        ['Art-Net', 0, 0x0050, 14, this.ArtDmxSeq, 0, this.subuni,
-          this.net, 512,
-        ].concat(this.values)));
+      var udppacket = Buffer.from(
+        jspack.Pack(
+          ArtDmxHeaderFormat + ArtDmxPayloadFormat,
+          [
+            "Art-Net",
+            0,
+            0x0050,
+            14,
+            this.ArtDmxSeq,
+            0,
+            this.subuni,
+            this.net,
+            512,
+          ].concat(this.values)
+        )
+      );
       // Increase Sequence Counter
       this.ArtDmxSeq++;
+      this.emit("frame_sending", { node: this, data: udppacket });
 
-      log.debug('Packet content: ' + udppacket.toString('hex'));
       // Send UDP
       var client = this.socket;
-      client.send(udppacket, 0, udppacket.length, this.port, this.ip,
-        (err) => {
-          if (err) throw err;
-          log.log('ArtDMX frame sent to ' + this.ip + ':' + this.port);
-        });
+      client.send(udppacket, 0, udppacket.length, this.port, this.ip, (err) => {
+        if (err) throw err;
+        this.emit("frame_sent", { node: this, data: udppacket });
+      });
     }
   }
 
@@ -428,16 +417,15 @@ class sender {
    * @param {number} value - value (0-255)
    */
   setChannel(channel, value) {
-    if ((channel > 511) || (channel < 0)) {
-      throw new Error('Channel must be between 0 and 512');
+    if (channel > 511 || channel < 0) {
+      throw new Error("Channel must be between 0 and 512");
     }
-    if ((value > 255) || (value < 0)) {
-      throw new Error('Value must be between 0 and 255');
+    if (value > 255 || value < 0) {
+      throw new Error("Value must be between 0 and 255");
     }
     this.values[channel] = value;
     this.transmit();
   }
-
 
   /**
    * Prepares a single channel (without transmitting)
@@ -446,11 +434,11 @@ class sender {
    * @param {number} value - value (0-255)
    */
   prepChannel(channel, value) {
-    if ((channel > 511) || (channel < 0)) {
-      throw new Error('Channel must be between 0 and 512');
+    if (channel > 511 || channel < 0) {
+      throw new Error("Channel must be between 0 and 512");
     }
-    if ((value > 255) || (value < 0)) {
-      throw new Error('Value must be between 0 and 255');
+    if (value > 255 || value < 0) {
+      throw new Error("Value must be between 0 and 255");
     }
     this.values[channel] = value;
   }
@@ -463,14 +451,14 @@ class sender {
    * @param {number} value - value
    */
   fillChannels(start, stop, value) {
-    if ((start > 511) || (start < 0)) {
-      throw new Error('Channel must be between 0 and 512');
+    if (start > 511 || start < 0) {
+      throw new Error("Channel must be between 0 and 512");
     }
-    if ((stop > 511) || (stop < 0)) {
-      throw new Error('Channel must be between 0 and 512');
+    if (stop > 511 || stop < 0) {
+      throw new Error("Channel must be between 0 and 512");
     }
-    if ((value > 255) || (value < 0)) {
-      throw new Error('Value must be between 0 and 255');
+    if (value > 255 || value < 0) {
+      throw new Error("Value must be between 0 and 255");
     }
     for (var i = start; i <= stop; i++) {
       this.values[i] = value;
@@ -562,10 +550,10 @@ class receiver extends EventEmitter {
     if ((this.net < 0) || (this.subnet < 0) || (this.universe < 0)) {
       throw new Error('Subnet, Net or Universe must be 0 or bigger!');
     }
-    if (this.verbose > 0) {
-      log.log('new dmxnet sender started with params: ' +
-        JSON.stringify(options));
-    }
+    
+    
+    parent.emit('sender_started', this);
+    
     // init dmx-value array
     this.values = [];
     // fill all 512 channels
@@ -594,46 +582,54 @@ class receiver extends EventEmitter {
 
 // Parser & receiver
 var dataParser = function(msg, rinfo, parent) {
-  log.debug(`got UDP from ${rinfo.address}:${rinfo.port}`);
+  parent.emit('udp_packet_received', {node:parent, from:rinfo, data:msg});
   if (rinfo.size < 10) {
-    log.debug('Payload to short');
+    this.emit('error', { node: parent, error: new Error('Payload too short') });
     return;
   }
   // Check first 8 bytes for the "Art-Net" - String
   if (String(jspack.Unpack('!8s', msg)) !== 'Art-Net\u0000') {
-    log.debug('Invalid header');
+    parent.emit("error", {node:parent, error: new Error("Invalid header") });
     return;
   }
   var opcode = parseInt(jspack.Unpack('B', msg, 8), 10);
   opcode += parseInt(jspack.Unpack('B', msg, 9), 10) * 256;
   if (!opcode || opcode === 0) {
-    log.debug('Invalid OpCode');
+    parent.emit("error", { node: parent, error: new Error("Invalid header", { opcode }) });
     return;
   }
   switch (opcode) {
     case 0x5000:
-      log.debug('detected ArtDMX');
+      parent.emit("artdmx_detected", {node:parent});
       var universe = parseInt(jspack.Unpack('H', msg, 14), 10);
       var data = [];
       for (var ch = 1; ch <= msg.length - 18; ch++) {
         data.push(msg.readUInt8(ch + 17, true));
       }
-      log.debug('Received frame for SubUniNet 0x' + universe.toString(16));
+      parent.emit(
+        "debug",
+        { node: parent, message: "'Received frame for SubUniNet 0x' + universe.toString(16)" }
+      );
+      parent.emit(
+        "debug",
+        { node: parent, message: "Received frame for SubUniNet 0x" + universe.toString(16) }
+      );
       if (parent.receiversSubUni[universe]) {
         parent.receiversSubUni[universe].receive(data);
       }
       break;
     case 0x2000:
       if (rinfo.size < 14) {
-        log.debug('ArtPoll to small');
+        parent.emit("error", { node: parent, error: new Error("ArtPoll too small") });
         return;
       }
-      log.debug('detected ArtPoll');
+      parent.emit("detected_artpoll", { node: this });
+
       // Parse Protocol version
       var proto = parseInt(jspack.Unpack('B', msg, 10), 10);
       proto += parseInt(jspack.Unpack('B', msg, 11), 10) * 256;
       if (!proto || proto < 14) {
-        log.debug('Invalid OpCode');
+       parent.emit("error", new Error("Invalid OpCode"));
         return;
       }
       // Parse TalkToMe
@@ -661,14 +657,14 @@ var dataParser = function(msg, rinfo, parent) {
         parent.controllers.push(ctrl);
       }
       parent.ArtPollReply();
-      log.debug('Controllers: ' + JSON.stringify(parent.controllers));
+      parent.emit("controllers_found ", { node:parent, controllers:parent.controllers });
       break;
     case 0x2100:
       // ToDo
-      log.debug('detected ArtPollReply');
+      parent.emit('art_poll_reply', {node:parent});
       break;
     default:
-      log.debug('OpCode not implemented');
+      parent.emit('warning', { node: parent, message: 'OpCode not implemented' });
   }
 
 };
