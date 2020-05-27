@@ -104,7 +104,7 @@ class ArtNet extends EventEmitter {
    * @param {object} options - Options for the new sender
    * @returns {sender} - Instance of Sender
    */
-  newSender(options) {
+  createSender(options) {
     var s = new Sender(options, this);
     this.senders.push(s);
     this.ArtPollReply();
@@ -117,7 +117,7 @@ class ArtNet extends EventEmitter {
    * @param {object} options - Options for the new receiver
    * @returns {receiver} - Instance of Receiver
    */
-  newReceiver(options) {
+  createReceiver(options) {
     var r = new Receiver(options, this);
     this.receivers.push(r);
     this.ArtPollReply();
