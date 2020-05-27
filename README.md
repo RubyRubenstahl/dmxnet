@@ -72,19 +72,16 @@ var dmxlib=require('dmxnet');
 
 **Create new dmxnet object:**
 
-```javascript
-var dmxnet = new dmxlib.dmxnet(options);
-```
-
-Options:
 
 ```javascript
-{
+const opts = {
   verbose: 1, //Verbosity, default 0
   oem: 0, //OEM Code from artisticlicense, default to dmxnet OEM.
   sName: "Text", // 17 char long node description, default to "dmxnet"
   lName: "Long description" // 63 char long node description, default to "dmxnet - OpenSource ArtNet Transceiver"
 }
+
+var dmxnet = new dmxlib.dmxnet(options);
 ```
 
 ### Structure
@@ -103,14 +100,10 @@ trough ArtPoll.**
 
 **Create new sender object:**
 
-```javascript
-var sender=dmxnet.newSender(options);
-```
-
 Options:
 
 ```javascript
-{
+const opts = {
   ip: "127.0.0.1", //IP to send to, default 255.255.255.255
   subnet: 0, //Destination subnet, default 0
   universe: 0, //Destination universe, default 0
@@ -118,6 +111,8 @@ Options:
   port: 6454, //Destination UDP Port, default 6454
   base_refresh_interval: 1000 // Default interval for sending unchanged ArtDmx
 }
+
+var sender=dmxnet.newSender(options);
 ```
 
 **Set Channel:**
