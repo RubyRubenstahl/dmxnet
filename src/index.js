@@ -18,7 +18,7 @@ class ArtNet extends EventEmitter {
     // Parse all options and set defaults
     this.verbose = options.verbose || 0;
     this.oem = options.oem || 0x2908; // OEM code hex
-    this.port = options.listen || 6454; // Port listening for incoming data
+    this.port = options.port || 6454; // Port listening for incoming data
     this.sName = options.sName || "dmxnet"; // Shortname
     this.lName = options.lName || "dmxnet - OpenSource ArtNet Transceiver"; // Longname
 

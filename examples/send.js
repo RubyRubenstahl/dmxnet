@@ -6,24 +6,16 @@ var artnet = new ArtNet({});
 // Create new Sender instance
 
 
-var sender = artnet.newSender({
-  ip: '10.7.240.66',
+var sender = artnet.createSender({
+  ip: '255.255.255.255',
   subnet: 0,
   universe: 0,
   net: 0,
 });
 // Set Channels
-sender.setChannel(0, 100);
-sender.setChannel(1, 128);
+sender.setChannel(0, 0);
+sender.setChannel(0, 128);
+sender.transmit();
 // Fill Channels
 sender.fillChannels(1, 20, 10);
 // Prepare Channel 26+27 after 10 s and send next secondly
-setTimeout(function() {
-  sender.prepChannel(25, 255);
-  sender.prepChannel(26, 255);
-  sender.transmit();
-}, 10000);
-// Stop sender after 5 seconds
-setTimeout(function() {
-  sender.stop();
-}, 50000);
