@@ -1,6 +1,6 @@
 {
   "name": "kt-artnet",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "ArtNet-DMX-sender and receiver for nodejs forked from @margau/dmxnet",
   "main": "src/index.js",
   "scripts": {
