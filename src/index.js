@@ -106,6 +106,7 @@ class ArtNet extends EventEmitter {
    */
   createSender(options) {
     var s = new Sender(options, this);
+    console.log('creating senders')
     this.senders.push(s);
     this.ArtPollReply();
     return s;
