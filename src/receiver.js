@@ -64,6 +64,7 @@ class Receiver extends EventEmitter {
     this.values = data;
     this.emit("data", data);
   }
+
 }
 
 module.exports = Receiver

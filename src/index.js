@@ -124,6 +124,17 @@ class ArtNet extends EventEmitter {
     return r;
   }
 
+  close(){
+    console.log('Destroying artnet receivers')
+    this.receivers.forEach(receiver=>receiver.stop());
+
+    console.log('Destroying artnet senders')
+    this.senders = [];
+    
+    this.socket.close();
+    this.listener4.close();
+  }
+
   /**
    * Builds and sends an ArtPollReply-Packet
    */
