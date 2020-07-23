@@ -65,6 +65,17 @@ class Receiver extends EventEmitter {
     this.emit("data", data);
   }
 
+  stop() {
+    this.removeAllListeners();
+    this.parent.receivers = this.parent.receivers.filter(function(value) {
+      if (value === this) {
+        return false;
+      }
+      return true;
+    });
+    
+  }
+
 }
 
 module.exports = Receiver

@@ -130,7 +130,7 @@ class ArtNet extends EventEmitter {
     this.receivers.forEach(receiver=>receiver.stop());
 
     console.log('Destroying artnet senders')
-    this.senders = [];
+    this.senders.forEach(sender=>sender.stop());
     
     this.socket.close();
     this.listener4.close();
