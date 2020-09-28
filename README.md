@@ -1,76 +1,22 @@
 # ⚠ WARNING!!!
-This project was forked from a packaged called dmxnet by @margau. 
-
-This README has not yet been updated to reflect the changes made in this fork. 
-
-
 
 ## Description
 dmxnet is an ArtNet-DMX-sender and receiver for nodejs,
 currently under heavy development!
 
 ## Features
-
 - Send DMX-Data as ArtNet
 - Use multiple senders with different Net, Subnet and Universe-Settings
 - Receive ArtNet-Data
 - Use multiple receivers with different Net, Subnet and Universe
 - Receive ArtPoll and send ArtPollReply (dmxnet is found by other software, e.g. [DMX-Workshop](https://art-net.org.uk/resources/dmx-workshop/))
 
-## Contributors
-See https://github.com/margau/dmxnet/graphs/contributors
-
-## Changelog
-**v0.4.0**
-Added support for receiving ArtDMX packets.
-
-**v0.3.0**
-Added support for base_refresh_interval, add sender.reset()
-
-**v0.2.0**
-
-Added support for receiving ArtPoll and sending ArtPollReply.
-
-**v0.1.3**
-Improved logging trough use of simple-node-logger
-
-**v0.1.2**
-Added subuni option to sender
-
-**v0.1.1**
-Added prepare channel
-
-**v0.1.0**
-Initital Release, sending ArtDMX working
-
-## Installation
-
-**How to install latest release:**
-
-```bash
-npm install dmxnet
-```
-
-**How to install current development version:**
-
-```bash
-npm install git+https://git@github.com/margau/dmxnet.git
-```
-
-## Usage
-
-**See example_rx.js and example_tx.js**
-
-**Include dmxnet lib:**
+# Basic usage
 
 ```javascript
-var dmxlib=require('dmxnet');
-```
 
-**Create new dmxnet object:**
+const Artnet = require("kt-artnet");
 
-
-```javascript
 const opts = {
   verbose: 1, //Verbosity, default 0
   oem: 0, //OEM Code from artisticlicense, default to dmxnet OEM.
@@ -78,7 +24,22 @@ const opts = {
   lName: "Long description" // 63 char long node description, default to "dmxnet - OpenSource ArtNet Transceiver"
 }
 
-var dmxnet = new dmxlib.dmxnet(options);
+// Create an Artnet server instance
+const server = new Artnet({
+  verbose: 1,
+  sName: ''
+});
+
+// Create a sender
+const sender = artnetServer.createSender({
+  ip: "255.255.255.255",
+  subnet: 0,
+  universe: 0,
+  net: 0,
+});
+
+// Set channels 1-512 to 100%
+sender.fillChannels(0, 511, 255);
 ```
 
 ### Structure
